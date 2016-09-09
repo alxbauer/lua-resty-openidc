@@ -484,8 +484,13 @@ end
 function openidc.authenticate(opts, target_url)
 
   local err
-
-  local session = require("resty.session").open()
+  local session
+  
+  if opts.session_auto_renew == "yes" then
+    session = require("resty.session").start()
+  else
+    session = require("resty.session").open()
+  end
 
   local target_url = target_url or ngx.var.request_uri
   
