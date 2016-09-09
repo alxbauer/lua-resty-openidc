@@ -389,6 +389,34 @@ local openidc_transparent_pixel = "\137\080\078\071\013\010\026\010\000\000\000\
                                   "\002\007\001\002\154\028\049\113\000\000\000\000\073\069\078\068" ..
                                   "\174\066\096\130"
 
+-- handle session status request
+local function openidc_session_status(opts, session)
+  local cjson = require "cjson"
+
+  ngx.header.content_type = "text/html"
+  ngx.say("<html><body>")
+
+  ngx.say("<h1>Session status:</h1>")
+  ngx.say("<p>id: ", ngx.encode_base64(session.id) ,"</p>")
+  ngx.say("<p>present: ", session.present ,"</p>")
+  ngx.say("<p>opened: ", session.opened ,"</p>")
+  ngx.say("<p>started: ", session.started ,"</p>")
+  ngx.say("<p>destroyed: ", session.destroyed ,"</p>")
+  ngx.say("<p>expires: ", session.expires, " => ", os.date('%Y-%m-%d %H:%M:%S', session.expires),  "</p>")
+
+  -- ngx.say("<hr>")
+  -- ngx.say("<h1>Session data:</h1>")
+  -- ngx.say("<p>", cjson.encode(session.data) ,"</p>")
+
+  -- ngx.say("<hr>")
+  -- ngx.say("<h1>Options:</h1>")
+  -- ngx.say("<p>", cjson.encode(opts) ,"</p>")
+
+  ngx.say("</body></html>")
+  ngx.exit(ngx.OK)
+end
+
+								  
 -- handle logout
 local function openidc_logout(opts, session)
   session:destroy()
@@ -480,6 +508,11 @@ function openidc.authenticate(opts, target_url)
   local path = target_url:match("(.-)%?") or target_url
   if path == opts.redirect_uri_path then
     return openidc_authorization_response(opts, session)
+  end
+
+   -- see if this is a request for session status
+  if path == (opts.status_path and opts.status_path or "/status") then
+    return openidc_session_status(opts, session)
   end
 
   -- see if this is a request to logout
