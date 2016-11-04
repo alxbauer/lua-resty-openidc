@@ -393,30 +393,38 @@ local openidc_transparent_pixel = "\137\080\078\071\013\010\026\010\000\000\000\
 local function openidc_session_status(opts, session)
   local cjson = require "cjson"
 
-  ngx.header.content_type = "text/html"
-  ngx.say("<html><body>")
+  local rdx_auth = {}
 
-  ngx.say("<h1>Session status:</h1>")
-  ngx.say("<p>id: ", ngx.encode_base64(session.id) ,"</p>")
-  ngx.say("<p>present: ", session.present ,"</p>")
-  ngx.say("<p>opened: ", session.opened ,"</p>")
-  ngx.say("<p>started: ", session.started ,"</p>")
-  ngx.say("<p>destroyed: ", session.destroyed ,"</p>")
-  ngx.say("<p>expires: ", session.expires, " => ", os.date('%Y-%m-%d %H:%M:%S', session.expires),  "</p>")
+  if session.data and session.data.id_token then
+    rdx_auth.auth_timestamp = session.data.id_token.iat
+    rdx_auth.auth_time = os.date('%Y-%m-%d %H:%M:%S', session.data.id_token.iat)
+    rdx_auth.expire_timestamp = session.data.id_token.exp
+    rdx_auth.expire_time = os.date('%Y-%m-%d %H:%M:%S', session.data.id_token.exp)
+  end
 
-  -- ngx.say("<hr>")
-  -- ngx.say("<h1>Session data:</h1>")
-  -- ngx.say("<p>", cjson.encode(session.data) ,"</p>")
+  if session.data and session.data.user then
+    rdx_auth.user = session.data.user.email
+  end
 
-  -- ngx.say("<hr>")
-  -- ngx.say("<h1>Options:</h1>")
-  -- ngx.say("<p>", cjson.encode(opts) ,"</p>")
+  local session_status = {
+    id=ngx.encode_base64(session.id),
+    present=session.present,
+    opened=session.opened,
+    started=session.started,
+    destroyed=session.destroyed,
+    expire_timestamp=session.expires,
+    expire_time=os.date('%Y-%m-%d %H:%M:%S', session.expires),
+    rdx_auth = rdx_auth
+    -- session_data=session.data
+  }
 
-  ngx.say("</body></html>")
+  ngx.header.content_type = "application/json"
+  ngx.say(cjson.encode(session_status))
+
   ngx.exit(ngx.OK)
 end
 
-								  
+
 -- handle logout
 local function openidc_logout(opts, session)
   session:destroy()
@@ -438,8 +446,8 @@ local function openidc_logout(opts, session)
     return ngx.redirect(opts.discovery.ping_end_session_endpoint)
   end
   
-  ngx.header.content_type = "text/html"
-  ngx.say("<html><body>Logged Out</body></html>")
+  ngx.header.content_type = "application/json"
+  ngx.say("{\"logout\":true}")
   ngx.exit(ngx.OK)
 end
 
